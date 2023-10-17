@@ -1,0 +1,199 @@
+---
+title: "DplyrTidyrLab"
+author: "Sarah Grant"
+cache: true
+format: 
+  html:
+   echo: false
+   message: false
+  docx:
+    echo: false
+  pdf:
+    echo: false
+    message: false
+---
+
+```{r configuration}
+#| message: false
+here::i_am("dplyrhomework.Rproj")
+library(here)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)
+```
+```{r}
+tibble.opts = list(width = Inf, pillar.display = "ft")
+```
+
+## Exercise 1
+
+```{r}
+spotify <- readRDS("top-spotify-hits-2000-2019.Rds")
+```
+
+### Question 1
+
+```{r}
+num_songs <- spotify %>%
+  distinct(song, artist, .keep_all = TRUE) %>%
+  summarise(num_songs=n())
+```
+
+```{r}
+num_artists <- spotify %>%
+  distinct(artist, .keep_all = TRUE) %>%
+  summarise(num_artists=n())
+```
+
+```{r}
+num_genres <- spotify %>%
+  distinct(genre, .keep_all = TRUE) %>%
+  summarise(num_genres=n())
+```
+
+```{r}
+cat("The data set contains", num_songs$num_songs, "unique songs.\n")
+cat("The data set contains", num_artists$num_artists, "unique artists.\n")
+cat("The data set contains", num_genres$num_genres, "unique musical genres.")
+```
+
+### Question 2
+```{r}
+artistsperyear <- readRDS("top-spotify-hits-2000-2019.Rds") %>%
+  distinct(artist, year, keep.all = TRUE) %>%
+  group_by(year) %>%
+  summarise(num_distartists = n_distinct(artist))
+
+table_artists <- knitr::kable(artistsperyear, 
+                              caption = "Number of Artists per Year",
+                              col.names = c("Year", "Number of Distinct Artists"))
+table_artists
+```
+
+### Question 3
+```{r}
+artist_songs <- readRDS("top-spotify-hits-2000-2019.Rds") %>%
+  distinct(song, artist, year, keep.all = TRUE) %>%
+  group_by(artist) %>%
+  summarise(num_songs = n())
+
+mostpopularartist <- artist_songs %>%
+  filter(num_songs == max(num_songs))
+                              
+cat("The most popular artist is",
+    mostpopularartist$artist[1], "with", mostpopularartist$num_songs, "songs.")
+```
+
+### Question 4
+
+Below is the table showing the minimum, maximum, mean and median tempo as well as the number of songs, for each musical genre:
+```{r}
+genre_summary_stats <- spotify %>%
+  distinct(artist, song, genre, tempo, keep.all = TRUE) %>%
+  group_by(genre) %>%
+  summarise(
+    mintemp = min(tempo),
+    maxtemp = max(tempo),
+    meantemp= mean(tempo),
+    medtemp = median(tempo),
+    num_songs= n_distinct(song)
+  )
+
+table_genre_summary_stats <- knitr::kable(genre_summary_stats,
+                                          caption = "Tempo Statistics by Genre",
+                                          col.names = c("Genre", "MinTempo", "MaxTempo", "MeanTempo", "MedianTempo", "Number of songs" ))
+                              
+table_genre_summary_stats
+```
+
+### Question 5
+Below is the simple dataframe displaying the mean liveness and mean danceability per year:
+```{r}
+dataframeq5 <- spotify %>%
+group_by(year) %>%
+  summarise(
+    mean_liveness = mean(liveness),
+    mean_danceability = mean(danceability)
+  )
+tibble.opts = list(width = Inf)
+dataframeq5
+```
+
+Just for a more "aesthetically pleasing" depiction, below is the dataframe knitted into a table:
+```{r}
+dataframeq5 <- spotify %>%
+group_by(year) %>%
+  summarise(
+    mean_liveness = mean(liveness),
+    mean_danceability = mean(danceability)
+  )
+table_dataframeq5 <- knitr::kable(dataframeq5,
+                                          caption = "Mean Liveness and Mean Danceability per Year",
+                                          col.names = c("Year", "Mean Liveness", "Mean Danceability" ))
+table_dataframeq5
+```
+
+### Question 6
+Below is graphical depiction of the temporal evoloution of both the mean annual liveness and the mean annual danceability.
+```{r}
+ggplot(dataframeq5, aes(x=year)) +
+  geom_line(aes(y= mean_liveness, color= "Mean Liveness"), linewidth = 1) +
+  geom_line(aes(y=mean_danceability, color = "Mean Danceability"), linewidth=1) +
+  labs(title= "Evolution of the Mean Liveness and Mean Danceability", y= "Mean Value", color= "Metric") +
+  scale_color_manual(values = c("Mean Liveness"= "pink", "Mean Danceability"= "blue")) +
+theme_minimal()
+```
+Side note for professor: This graph is not too "80s vibes" in terms of colour choice I hope!
+
+## Exercise 2
+```{r}
+dropout <- readRDS("dropout.Rds")
+```
+
+### Question 1
+Below we can see the median admission grade for each combination of Target variable and Marital Status:
+```{r}
+options(dplyr.summarise.inform = FALSE)
+conditionedadmgrade <- dropout %>%
+  group_by(Target, `Marital status`) %>%
+  summarise("Median admission grade" = median(`Admission grade`))
+
+knitr::kable(conditionedadmgrade)
+
+```
+
+### Question 2
+The dataframe in Question 1 isn't the best way that we can show this... Below is the transformation of the previous dataframe with each row corresponding to a specific marital status (which is stated), while the other columns contain the corresponding median grade:
+```{r}
+transfrmddataframe <- conditionedadmgrade %>%
+  pivot_wider(names_from = Target, values_from = "Median admission grade")
+
+knitr::kable(transfrmddataframe)
+```
+
+### Question 3
+Below is the dataframe showing the conditional median of all variables related to "Curricular units" grouped by gender:
+```{r}
+currunitcondmean <- dropout %>%
+  group_by(Gender) %>%
+  summarise(across(starts_with("Curricular units"), median))
+
+knitr::kable(currunitcondmean)
+```
+### Question 4
+Below we can see the transformed data which is more readable, displayed in a knitted table:
+```{r}
+options(dplyr.summarise.inform = FALSE)
+knittedresult <- currunitcondmean %>%
+  pivot_longer(cols = starts_with("Curricular units"), names_to="Units", values_to="Value") %>%
+  group_by(Units, Gender) %>%
+  summarise(Median = median(Value)) %>%
+  pivot_wider(names_from = Gender, values_from = Median)
+
+tableknittedresult <- knitr::kable(knittedresult,
+                                          caption = "Conditional Median of Curricular Units by Gender")
+
+tableknittedresult
+```
+
