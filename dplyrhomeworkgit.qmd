@@ -6,11 +6,8 @@ format:
   html:
    echo: false
    message: false
-  docx:
-    echo: false
-  pdf:
-    echo: false
-    message: false
+execute: 
+  keep-md: true
 ---
 
 ```{r configuration}
